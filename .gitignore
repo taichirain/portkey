@@ -1,0 +1,40 @@
+# Dependencies
+dashboard/node_modules/
+
+# Build outputs
+dashboard/dist/
+
+# Go
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Claude
+.claude/
+TESTS.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+test-results/
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+
