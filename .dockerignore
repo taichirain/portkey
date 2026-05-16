@@ -1,0 +1,17 @@
+# Go
+vendor/
+
+# Dashboard
+dashboard/node_modules/
+dashboard/dist/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Git
+.git/
+.gitignore

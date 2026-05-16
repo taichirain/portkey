@@ -1,0 +1,24 @@
+control:
+  host: 0.0.0.0
+  port: 8001
+  db:
+    host: postgres
+    port: 5432
+    user: portkey
+    password: portkey
+    database: portkey
+    sslmode: disable
+
+data:
+  host: 0.0.0.0
+  port: 8080
+  control_url: http://portkey:8001
+  redis:
+    host: redis
+    port: 6379
+    password: ""
+    db: 0
+
+logging:
+  level: info
+  development: false
