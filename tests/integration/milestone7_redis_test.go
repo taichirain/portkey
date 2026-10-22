@@ -87,16 +87,22 @@ func setupRedisDP(t *testing.T, limit int, window string, limitBy string) (
 		w.Write([]byte("ok"))
 	}))
 	t.Cleanup(backend.Close)
+	// Every DP must consume the same published route identity. A fresh route ID
+	// per DP gives each instance a different Redis rate-limit key.
+	sharedServiceID := uuid.New()
+	sharedRouteID := uuid.New()
 
 	newDP := func() *proxy.Proxy {
 		snap := snapshot.NewConfigSnapshot(uuid.New())
 		svc, _ := service.New("test-svc")
+		svc.ID = sharedServiceID
 		svc.Protocol = service.ProtocolHTTP
 		svc.Host = "127.0.0.1"
 		svc.Port = parsePort(t, backend.Listener.Addr().String())
 		snap.AddService(svc)
 
 		r, _ := route.New(svc.ID)
+		r.ID = sharedRouteID
 		r.AddPath("/test")
 		r.AddMethod("GET")
 		snap.AddRoute(r)

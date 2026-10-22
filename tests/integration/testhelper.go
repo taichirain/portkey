@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -63,6 +64,16 @@ func SetupTestDB(t *testing.T) *postgres.DB {
 	if err != nil {
 		t.Fatalf("Failed to connect to test database: %v", err)
 	}
+	// Repository calls without tenant context use the system tenant. The app
+	// creates it on startup, while repository tests connect directly to the DB.
+	_, err = testDB.ExecContext(context.Background(), `
+		INSERT INTO tenants (id, name, slug, description)
+		VALUES ($1, 'System', 'system', 'Default test tenant')
+		ON CONFLICT (id) DO NOTHING
+	`, uuid.Nil)
+	if err != nil {
+		t.Fatalf("Failed to seed system tenant: %v", err)
+	}
 
 	return testDB
 }
@@ -87,11 +98,9 @@ func CleanupTables(t *testing.T, db *postgres.DB) {
 		"cp_instances",
 	}
 
-	for _, table := range tables {
-		_, err := db.ExecContext(ctx, fmt.Sprintf("TRUNCATE TABLE %s CASCADE", table))
-		if err != nil {
-			t.Logf("Warning: failed to truncate table %s: %v", table, err)
-		}
+	_, err := db.ExecContext(ctx, "TRUNCATE TABLE "+strings.Join(tables, ", ")+" CASCADE")
+	if err != nil {
+		t.Fatalf("Failed to clean test tables: %v", err)
 	}
 }
 

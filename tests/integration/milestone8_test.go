@@ -266,23 +266,16 @@ func TestM8_HealthMetrics_Observable(t *testing.T) {
 		t.Fatal("Expected some health metrics")
 	}
 
-	for key, metrics := range allMetrics {
-		t.Logf("Target %s:%d - Status: %s, Circuit: %s, Successes: %d, Failures: %d",
-			key.Target, key.Port, metrics.Status, metrics.CircuitState, metrics.Successes, metrics.Failures)
-
-		if metrics.Status != health.StatusHealthy {
-			t.Logf("Note: status is %v (may be affected by previous tests)", metrics.Status)
-			continue
-		}
-
-		if metrics.CircuitState != health.CircuitClosed {
-			t.Logf("Note: circuit state is %v (may be affected by previous tests)", metrics.CircuitState)
-			continue
-		}
-
-		if metrics.Successes < 5 {
-			t.Errorf("Expected at least 5 successes, got: %d", metrics.Successes)
-		}
+	key := health.NewTargetKey(u.ID, t1.Target, t1.Port)
+	metrics, ok := allMetrics[key]
+	if !ok {
+		t.Fatalf("Expected health metrics for target %s:%d", t1.Target, t1.Port)
+	}
+	if metrics.Status != health.StatusHealthy || metrics.CircuitState != health.CircuitClosed {
+		t.Errorf("Expected healthy target with closed circuit, got status=%s circuit=%s", metrics.Status, metrics.CircuitState)
+	}
+	if metrics.Successes < 5 {
+		t.Errorf("Expected at least 5 successes, got: %d", metrics.Successes)
 	}
 }
 

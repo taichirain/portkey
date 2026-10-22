@@ -531,6 +531,19 @@ func (p *Proxy) serveWithRetry(w http.ResponseWriter, r *http.Request, chain *pl
 		}
 	}
 
+	if respErr != nil {
+		_ = chain.ExecuteOnError(pluginCtx, respErr)
+		atomic.AddInt64(&p.metrics.errorsTotal, 1)
+
+		start := r.Context().Value(ctxKeyStartTime)
+		var latency time.Duration
+		if start != nil {
+			latency = time.Since(start.(time.Time))
+		}
+		p.metrics.recordRequest(http.StatusBadGateway, latency, false, matched.TrafficPolicyHit)
+		p.logAccess(r, http.StatusBadGateway, latency, traceID)
+	}
+
 	if recoveryWriter.wroteHeader {
 		for k, v := range recoveryWriter.Header() {
 			for _, vv := range v {
@@ -541,18 +554,6 @@ func (p *Proxy) serveWithRetry(w http.ResponseWriter, r *http.Request, chain *pl
 		if recoveryWriter.body != nil {
 			w.Write(recoveryWriter.body.Bytes())
 		}
-	} else if respErr != nil {
-		_ = chain.ExecuteOnError(pluginCtx, respErr)
-		atomic.AddInt64(&p.metrics.errorsTotal, 1)
-
-		start := r.Context().Value(ctxKeyStartTime)
-		var latency time.Duration
-		if start != nil {
-			latency = time.Since(start.(time.Time))
-		}
-		p.metrics.recordRequest(http.StatusBadGateway, latency, false, matched.TrafficPolicyHit)
-
-		http.Error(w, "Bad Gateway", http.StatusBadGateway)
 	}
 }
 
@@ -916,34 +917,11 @@ func (p *Proxy) errorHandler(w http.ResponseWriter, r *http.Request, err error) 
 		zap.String("path", r.URL.Path),
 	)
 
-	pluginCtxVal := r.Context().Value(ctxKeyPluginContext)
-	chainVal := r.Context().Value(ctxKeyPluginChain)
-
-	if pluginCtxVal != nil && chainVal != nil {
-		pluginCtx := pluginCtxVal.(*pluginPkg.PluginContext)
-		chain := chainVal.(*pluginPkg.PluginChain)
-
-		_ = chain.ExecuteOnError(pluginCtx, err)
+	if buffered, ok := w.(*responseWriter); ok {
+		buffered.err = err
 	}
-
-	atomic.AddInt64(&p.metrics.errorsTotal, 1)
-
-	start := r.Context().Value(ctxKeyStartTime)
-	var latency time.Duration
-	if start != nil {
-		latency = time.Since(start.(time.Time))
-	}
-
-	policyHit := false
-	if matchedVal := r.Context().Value("matched_route"); matchedVal != nil {
-		if matched, ok := matchedVal.(*snapshot.MatchedRoute); ok {
-			policyHit = matched.TrafficPolicyHit
-		}
-	}
-
-	p.metrics.recordRequest(http.StatusBadGateway, latency, false, policyHit)
-
-	http.Error(w, "Bad Gateway", http.StatusBadGateway)
+	w.WriteHeader(http.StatusBadGateway)
+	_, _ = w.Write([]byte("Bad Gateway\n"))
 }
 
 func (p *Proxy) logAccess(r *http.Request, statusCode int, latency time.Duration, traceID string) {

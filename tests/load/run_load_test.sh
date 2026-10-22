@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 
@@ -17,37 +17,38 @@ echo "  持续时间: $DURATION"
 echo "  并发数:   $CONCURRENT"
 echo ""
 
-mkdir -p results
+RESULTS_DIR="tests/load/results"
+mkdir -p "$RESULTS_DIR"
 
 echo "========================================"
 echo "测试 1/3: 无插件模式 (Plain)"
 echo "========================================"
-go run ./tests/load/load_test.go \
+go run ./tests/load/main.go \
     -duration="$DURATION" \
     -concurrent="$CONCURRENT" \
     -mode=plain \
-    2>&1 | tee results/plain_result.txt
+    2>&1 | tee "$RESULTS_DIR/plain_result.txt"
 
 echo ""
 echo "========================================"
 echo "测试 2/3: 认证模式 (Auth)"
 echo "========================================"
-go run ./tests/load/load_test.go \
+go run ./tests/load/main.go \
     -duration="$DURATION" \
     -concurrent="$CONCURRENT" \
     -mode=auth \
-    2>&1 | tee results/auth_result.txt
+    2>&1 | tee "$RESULTS_DIR/auth_result.txt"
 
 echo ""
 echo "========================================"
 echo "测试 3/3: 认证+限流模式 (Auth + RateLimit)"
 echo "========================================"
-go run ./tests/load/load_test.go \
+go run ./tests/load/main.go \
     -duration="$DURATION" \
     -concurrent="$CONCURRENT" \
     -mode=ratelimit \
     -ratelimit=10000 \
-    2>&1 | tee results/ratelimit_result.txt
+    2>&1 | tee "$RESULTS_DIR/ratelimit_result.txt"
 
 echo ""
 echo "========================================"
@@ -57,7 +58,7 @@ echo ""
 echo "结果文件位置: $(pwd)/tests/load/results/"
 echo ""
 
-for f in results/plain_result.txt results/auth_result.txt results/ratelimit_result.txt; do
+for f in "$RESULTS_DIR/plain_result.txt" "$RESULTS_DIR/auth_result.txt" "$RESULTS_DIR/ratelimit_result.txt"; do
     if [ -f "$f" ]; then
         mode=$(basename "$f" _result.txt)
         echo "=== $mode ==="

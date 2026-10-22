@@ -31,7 +31,7 @@ import {
 import { apiService } from '../services/api';
 import * as types from '../types';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const formatUptime = (seconds: number): string => {
   if (seconds < 60) return `${Math.floor(seconds)} 秒`;
@@ -68,7 +68,7 @@ const MonitoringPage: React.FC = () => {
   }, [fetchData]);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
+    let interval: ReturnType<typeof setInterval> | null = null;
     if (autoRefresh) {
       interval = setInterval(fetchData, 10000);
     }

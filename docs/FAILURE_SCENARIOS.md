@@ -4,6 +4,8 @@
 
 本文档定义了 Portkey API Gateway 在各种故障场景下的预期行为和验证步骤。
 
+2026-10-22 本机复验：`go test ./... -count=1`、`go test -tags=integration ./tests/integration -count=1` 和 15 个 Playwright 用例均通过。下表中的 PostgreSQL/Redis 故障与恢复使用自动化模拟测试；对真实运行实例执行停机、恢复和观察的手工演练仍需单独记录。
+
 ---
 
 ## 验证状态总览

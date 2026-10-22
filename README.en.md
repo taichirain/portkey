@@ -52,8 +52,8 @@ portkey/
 | Health Checks | ✅ | Active/passive, configurable intervals |
 | Admin API | ✅ | Service, Route, Upstream, Consumer CRUD |
 | Auth | ✅ | JWT, RBAC, API key management |
-| Dashboard | ⚡ Skeleton | React + Ant Design SPA |
-| Traffic Split | 🔄 Planned | Blue-green, canary, weighted routing |
+| Dashboard | ✅ | React + Ant Design pages for configuration, monitoring, traffic policies, and revision publishing/rollback |
+| Traffic Split | ✅ | Header, weight, query, and other policies applied through revision snapshots |
 
 ## Quick Start
 

@@ -1,6 +1,6 @@
 # Portkey API Gateway — Roadmap
 
-> 版本：v0.2 | 日期：2026-05-03 | 状态：Draft
+> 版本：v0.3 | 更新：2026-10-22 | 状态：持续维护
 
 ---
 
@@ -28,6 +28,26 @@
 9. Milestone 8：上游可靠性
 10. Milestone 9：Dashboard 最小可用版
 11. Milestone 10：测试、压测与故障验证
+12. Milestone 11：最小灰度切流
+13. Milestone 12：灰度规则扩展
+14. Milestone 13：多租户与 RBAC
+15. Milestone 14：多 CP 高可用
+16. Milestone 15：协议与动态插件扩展
+17. Milestone 16：控制面与观测收口
+18. Milestone 17：复杂流量治理收口
+
+### 当前完成情况（2026-10-22）
+
+| 范围 | 状态 | 验收证据与剩余工作 |
+|---|---|---|
+| M0–M8 | 主路径完成 | Go 默认测试和 PostgreSQL 集成测试覆盖启动、发布、快照、代理、插件、认证、限流与健康检查；CI 执行两套测试。 |
+| M9 | 完成 | Dashboard 可从登录走到配置创建与 revision 发布；Playwright E2E 已纳入 CI。 |
+| M10 | 进行中 | 单测、数据库测试、浏览器 E2E 与三档本机压测已运行，样例结果见 `docs/TEST.md`；仍需固定环境的正式容量基线和故障演练记录。 |
+| M11–M15 | 已有实现，待逐项补齐正式验收口径 | 代码和测试覆盖灰度策略、复合规则、多租户 RBAC、多 CP 高可用、动态插件及 WebSocket/gRPC；原 roadmap 未定义这五个 milestone，下面补上对应范围。 |
+| M16 | 主链路完成，观测收口进行中 | Dashboard 创建灰度策略、发布、回滚及 DP revision 切换已有浏览器 E2E；失败场景的页面排障信息仍需继续完善。 |
+| M17 | 规划中 | 复杂规则与认证、限流、健康检查的组合验收尚未形成完整矩阵。 |
+
+当前发布门禁见 `.github/workflows/ci.yml`；测试执行说明见 `docs/TEST.md`。
 
 ---
 
@@ -402,6 +422,22 @@
 
 ---
 
+### Milestone 11–15：已实现能力的补充定义
+
+原始 v0.2 roadmap 没有写出这五个 milestone。下面按现有设计、代码与测试补齐范围；是否完成仍以各项验收结果为准。
+
+| Milestone | 范围 | 最小验收证据 |
+|---|---|---|
+| 11：最小灰度切流 | Header/weight 策略进入 revision，DP 原子应用 | `MILESTONE11_TRAFFIC_SPLIT_DESIGN.md`、Traffic Policy API 与发布测试 |
+| 12：灰度规则扩展 | Query、cookie、IP、path、method、复合条件和 fallback | `milestone12_test.go` 与 `milestone12.spec.ts` |
+| 13：多租户与 RBAC | tenant 隔离、权限控制、审计与 revision 归属 | `milestone13_p3_test.go` 与 `milestone13.spec.ts` |
+| 14：多 CP 高可用 | 分布式锁、单 active revision 与并发发布保护 | `multi_cp_ha_test.go` |
+| 15：协议与动态插件扩展 | WebSocket/gRPC 代理和 Go 动态插件加载 | `milestone15_protocol_test.go` 与 `milestone15_dynamic_plugin_test.go` |
+
+后续补齐每项的独立 Done 标准、故障边界和运行记录。
+
+---
+
 ## 4. 推荐实现顺序
 
 1. 工程骨架
@@ -428,7 +464,7 @@
 
 ### v0.3 规划
 
-如果 `Milestone 11-15` 已经开发完成，`v0.3` 建议继续沿用 milestone 编号，按两个步骤推进：
+在 `Milestone 11-15` 现有实现基础上，`v0.3` 沿用 milestone 编号，按两个步骤推进：
 
 #### Milestone 16：控制面与观测收口
 

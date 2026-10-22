@@ -135,6 +135,7 @@ test.describe('Milestone 9: Dashboard 最小可用版', () => {
     await page.click('button:has-text("新建服务")');
     await page.fill('input[placeholder="请输入服务名称"]', serviceName);
     await page.fill('input[placeholder="例如: example.com"]', 'localhost');
+    await page.fill('.ant-modal-body .ant-form-item-label:has-text("端口") + .ant-form-item-control input', '8080');
     await page.fill('input[placeholder="例如: /api"]', '/test');
     await page.click('.ant-modal-wrap:not(.ant-modal-hidden) .ant-modal-footer .ant-btn-primary');
     await expect(page.locator('.ant-message-notice:has-text("创建成功") >> nth=0')).toBeVisible({ timeout: 10000 });
@@ -160,18 +161,18 @@ test.describe('Milestone 9: Dashboard 最小可用版', () => {
 
     // 7. 验证配置
     await page.click('button:has-text("验证配置")');
-    await expect(page.locator('.ant-message-notice:has-text("配置验证通过")')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('配置验证通过').first()).toBeVisible({ timeout: 10000 });
 
     // 8. 创建快照
     await page.click('button:has-text("创建快照")');
-    await expect(page.locator('.ant-message-notice:has-text("快照创建成功")')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('快照创建成功').first()).toBeVisible({ timeout: 10000 });
 
     // 9. 创建并发布版本
     await page.click('button:has-text("新建版本")');
     await page.fill('input[placeholder="例如: v1.0.0 或 2024.01.01"]', versionName);
     await page.fill('textarea[placeholder="描述这个版本的变更内容..."]', 'E2E 测试自动创建的版本');
     await page.click('button:has-text("创建并发布")');
-    await expect(page.locator('.ant-message-notice:has-text("版本创建并发布成功")')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('版本创建并发布成功').first()).toBeVisible({ timeout: 10000 });
 
     // 10. 检查活跃版本显示
     await expect(page.locator('text=当前活跃版本')).toBeVisible();

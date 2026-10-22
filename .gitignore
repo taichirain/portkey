@@ -30,6 +30,7 @@ Thumbs.db
 
 # Test artifacts
 test-results/
+tests/load/results/
 
 # Logs
 *.log

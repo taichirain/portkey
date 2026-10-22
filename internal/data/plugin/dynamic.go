@@ -124,6 +124,12 @@ func (l *DynamicPluginLoader) doLoad(config *DynamicPluginConfig) (*LoadedDynami
 
 	factory, ok := sym.(PluginFactory)
 	if !ok {
+		// Exported Go plugin variables are returned as pointers by Lookup.
+		if exported, isFactoryVariable := sym.(*PluginFactory); isFactoryVariable && exported != nil {
+			factory = *exported
+		}
+	}
+	if factory == nil {
 		return nil, ErrDynamicPluginInvalidFactory
 	}
 

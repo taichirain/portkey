@@ -121,7 +121,7 @@ func max(a, b int64) int64 {
 }
 
 func createTestProxy(mode string, rateLimit int) (*proxy.Proxy, string) {
-	logger, _ := zap.NewDevelopment()
+	logger := zap.NewNop()
 
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -284,12 +284,13 @@ func main() {
 	fmt.Printf("\n  并发数:   %d", *concurrentFlag)
 	fmt.Printf("\n  限流值:   %d", *rateLimitFlag)
 	fmt.Printf("\n  测试模式: %s", *modeFlag)
-	fmt.Println("\n")
+	fmt.Println()
+	fmt.Println()
 
 	fmt.Println("正在初始化测试环境...")
 	p, apiKey := createTestProxy(*modeFlag, *rateLimitFlag)
-	fmt.Printf("API Key: %s\n", apiKey)
-	fmt.Println("测试环境就绪，开始压测...\n")
+	fmt.Println("测试环境就绪，开始压测...")
+	fmt.Println()
 
 	cfg := TestConfig{
 		Duration:   *durationFlag,

@@ -18,8 +18,8 @@ import (
 func createTestTenant(t *testing.T, db *postgres.DB, id uuid.UUID, name, slug string) {
 	t.Helper()
 	ctx := context.Background()
-	query := `INSERT INTO tenants (id, name, slug) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`
-	if _, err := db.ExecContext(ctx, query, id, name, slug); err != nil {
+	query := `INSERT INTO tenants (id, name, slug) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING`
+	if _, err := db.ExecContext(ctx, query, id, name, slug+"-"+id.String()[:8]); err != nil {
 		t.Fatalf("Failed to create test tenant: %v", err)
 	}
 }

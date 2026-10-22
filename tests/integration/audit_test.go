@@ -119,8 +119,8 @@ func TestAuditLogging(t *testing.T) {
 		if err != nil {
 			t.Errorf("Failed to unmarshal new_value: %v", err)
 		}
-		if newValueMap["Name"] != "audit-test-service" {
-			t.Errorf("Expected new_value.name 'audit-test-service', got '%v'", newValueMap["Name"])
+		if newValueMap["name"] != "audit-test-service" {
+			t.Errorf("Expected new_value.name 'audit-test-service', got '%v'", newValueMap["name"])
 		}
 
 		afterAuditCount := countRows(t, db, "audit_logs")

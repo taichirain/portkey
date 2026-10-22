@@ -766,10 +766,7 @@ const TrafficPoliciesPage: React.FC = () => {
           layout="vertical"
           onFinish={handleSubmit}
         >
-          <Tabs
-            activeKey={selectedType}
-            onChange={(key) => handleTypeChange(key as types.TrafficPolicyType)}
-          >
+          <Tabs defaultActiveKey="basic">
             <Tabs.TabPane tab="基本配置" key="basic">
               <Form.Item
                 name="name"
