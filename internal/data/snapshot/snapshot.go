@@ -42,17 +42,17 @@ const (
 type MatchOperator string
 
 const (
-	MatchOperatorExact         MatchOperator = "exact"
-	MatchOperatorPrefix        MatchOperator = "prefix"
-	MatchOperatorSuffix        MatchOperator = "suffix"
-	MatchOperatorContains      MatchOperator = "contains"
-	MatchOperatorRegex         MatchOperator = "regex"
-	MatchOperatorNotExact      MatchOperator = "not_exact"
-	MatchOperatorNotContains   MatchOperator = "not_contains"
-	MatchOperatorGreaterThan   MatchOperator = "greater_than"
-	MatchOperatorLessThan      MatchOperator = "less_than"
-	MatchOperatorGreaterEqual  MatchOperator = "greater_equal"
-	MatchOperatorLessEqual     MatchOperator = "less_equal"
+	MatchOperatorExact        MatchOperator = "exact"
+	MatchOperatorPrefix       MatchOperator = "prefix"
+	MatchOperatorSuffix       MatchOperator = "suffix"
+	MatchOperatorContains     MatchOperator = "contains"
+	MatchOperatorRegex        MatchOperator = "regex"
+	MatchOperatorNotExact     MatchOperator = "not_exact"
+	MatchOperatorNotContains  MatchOperator = "not_contains"
+	MatchOperatorGreaterThan  MatchOperator = "greater_than"
+	MatchOperatorLessThan     MatchOperator = "less_than"
+	MatchOperatorGreaterEqual MatchOperator = "greater_equal"
+	MatchOperatorLessEqual    MatchOperator = "less_equal"
 )
 
 type CompoundOperator string
@@ -128,9 +128,9 @@ type TagMatchConfig struct {
 }
 
 type ConsumerMatchConfig struct {
-	ConsumerIDs []uuid.UUID    `json:"consumer_ids,omitempty"`
-	Tags        []string       `json:"tags,omitempty"`
-	MatchMode   TagMatchMode   `json:"match_mode,omitempty"`
+	ConsumerIDs []uuid.UUID  `json:"consumer_ids,omitempty"`
+	Tags        []string     `json:"tags,omitempty"`
+	MatchMode   TagMatchMode `json:"match_mode,omitempty"`
 }
 
 type CompoundCondition struct {
@@ -139,7 +139,7 @@ type CompoundCondition struct {
 }
 
 type CompoundMatchConfig struct {
-	Operator   CompoundOperator   `json:"operator"`
+	Operator   CompoundOperator    `json:"operator"`
 	Conditions []CompoundCondition `json:"conditions"`
 }
 
@@ -162,45 +162,45 @@ type ConfigSnapshot struct {
 	RevisionID uuid.UUID
 	CreatedAt  time.Time
 
-	Routes                 []*route.Route
-	Services               map[uuid.UUID]*service.Service
-	Upstreams              map[uuid.UUID]*upstream.Upstream
-	Targets                map[uuid.UUID][]*target.Target
-	Plugins                *pluginPkg.SnapshotPluginStore
-	Credentials            map[string]*credential.Credential
-	CredentialsByConsumer  map[uuid.UUID][]*credential.Credential
-	TrafficPolicies        []*TrafficPolicy
+	Routes                []*route.Route
+	Services              map[uuid.UUID]*service.Service
+	Upstreams             map[uuid.UUID]*upstream.Upstream
+	Targets               map[uuid.UUID][]*target.Target
+	Plugins               *pluginPkg.SnapshotPluginStore
+	Credentials           map[string]*credential.Credential
+	CredentialsByConsumer map[uuid.UUID][]*credential.Credential
+	TrafficPolicies       []*TrafficPolicy
 
 	routeMatchers          []*RouteMatcher
 	balancers              map[uuid.UUID]*Balancer
 	trafficPoliciesByRoute map[uuid.UUID][]*TrafficPolicy
 
-	targetHealthStatus     map[uuid.UUID]map[string]*TargetHealthInfo
-	mu                     sync.RWMutex
+	targetHealthStatus map[uuid.UUID]map[string]*TargetHealthInfo
+	mu                 sync.RWMutex
 }
 
 type TargetHealthInfo struct {
-	Target   string
-	Port     int
-	Healthy  bool
+	Target    string
+	Port      int
+	Healthy   bool
 	LastCheck time.Time
 }
 
 func NewConfigSnapshot(revisionID uuid.UUID) *ConfigSnapshot {
 	return &ConfigSnapshot{
-		RevisionID:              revisionID,
-		CreatedAt:               time.Now(),
-		Routes:                  make([]*route.Route, 0),
-		Services:                make(map[uuid.UUID]*service.Service),
-		Upstreams:               make(map[uuid.UUID]*upstream.Upstream),
-		Targets:                 make(map[uuid.UUID][]*target.Target),
-		Plugins:                 pluginPkg.NewSnapshotPluginStore(),
-		Credentials:             make(map[string]*credential.Credential),
-		CredentialsByConsumer:   make(map[uuid.UUID][]*credential.Credential),
-		TrafficPolicies:         make([]*TrafficPolicy, 0),
-		balancers:               make(map[uuid.UUID]*Balancer),
-		trafficPoliciesByRoute:  make(map[uuid.UUID][]*TrafficPolicy),
-		targetHealthStatus:      make(map[uuid.UUID]map[string]*TargetHealthInfo),
+		RevisionID:             revisionID,
+		CreatedAt:              time.Now(),
+		Routes:                 make([]*route.Route, 0),
+		Services:               make(map[uuid.UUID]*service.Service),
+		Upstreams:              make(map[uuid.UUID]*upstream.Upstream),
+		Targets:                make(map[uuid.UUID][]*target.Target),
+		Plugins:                pluginPkg.NewSnapshotPluginStore(),
+		Credentials:            make(map[string]*credential.Credential),
+		CredentialsByConsumer:  make(map[uuid.UUID][]*credential.Credential),
+		TrafficPolicies:        make([]*TrafficPolicy, 0),
+		balancers:              make(map[uuid.UUID]*Balancer),
+		trafficPoliciesByRoute: make(map[uuid.UUID][]*TrafficPolicy),
+		targetHealthStatus:     make(map[uuid.UUID]map[string]*TargetHealthInfo),
 	}
 }
 
@@ -295,7 +295,7 @@ func (s *ConfigSnapshot) Build() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.routeMatchers = make([]*RouteMatcher, 0, len(s.Routes))
+	routeMatchers := make([]*RouteMatcher, 0, len(s.Routes))
 	for _, r := range s.Routes {
 		if !r.Enabled {
 			continue
@@ -304,9 +304,10 @@ func (s *ConfigSnapshot) Build() error {
 		if err != nil {
 			return fmt.Errorf("failed to create route matcher for %s: %w", r.ID, err)
 		}
-		s.routeMatchers = append(s.routeMatchers, matcher)
+		routeMatchers = append(routeMatchers, matcher)
 	}
 
+	balancers := make(map[uuid.UUID]*Balancer, len(s.Targets))
 	for upstreamID, targets := range s.Targets {
 		enabledTargets := make([]*target.Target, 0)
 		for _, t := range targets {
@@ -319,25 +320,31 @@ func (s *ConfigSnapshot) Build() error {
 			if !ok {
 				return fmt.Errorf("upstream %s not found for targets", upstreamID)
 			}
-			s.balancers[upstreamID] = NewBalancer(u, enabledTargets)
+			balancers[upstreamID] = NewBalancer(u, enabledTargets)
 		}
 	}
 
-	s.trafficPoliciesByRoute = make(map[uuid.UUID][]*TrafficPolicy)
+	policiesByRoute := make(map[uuid.UUID][]*TrafficPolicy)
 	for _, tp := range s.TrafficPolicies {
 		if tp.RouteID == uuid.Nil {
 			continue
 		}
-		s.trafficPoliciesByRoute[tp.RouteID] = append(s.trafficPoliciesByRoute[tp.RouteID], tp)
+		policiesByRoute[tp.RouteID] = append(policiesByRoute[tp.RouteID], tp)
 	}
 
-	for routeID, policies := range s.trafficPoliciesByRoute {
+	for routeID, policies := range policiesByRoute {
 		sort.Slice(policies, func(i, j int) bool {
-			return policies[i].Priority < policies[j].Priority
+			if policies[i].Priority != policies[j].Priority {
+				return policies[i].Priority < policies[j].Priority
+			}
+			return policies[i].ID.String() < policies[j].ID.String()
 		})
-		s.trafficPoliciesByRoute[routeID] = policies
+		policiesByRoute[routeID] = policies
 	}
 
+	s.routeMatchers = routeMatchers
+	s.balancers = balancers
+	s.trafficPoliciesByRoute = policiesByRoute
 	return nil
 }
 
@@ -413,14 +420,14 @@ func (s *ConfigSnapshot) MatchRoute(r *http.Request) (*MatchedRoute, bool) {
 			if policies, ok := s.trafficPoliciesByRoute[matcher.Route().ID]; ok {
 				for _, tp := range policies {
 					policyDetail := PolicyMatchDetail{
-						PolicyID:        tp.ID,
-						PolicyName:      tp.Name,
-						PolicyType:      tp.Type,
-						Priority:        tp.Priority,
-						Enabled:         tp.Enabled,
-						Matched:         false,
-						Selected:        false,
-						TargetServiceID: tp.TargetServiceID,
+						PolicyID:         tp.ID,
+						PolicyName:       tp.Name,
+						PolicyType:       tp.Type,
+						Priority:         tp.Priority,
+						Enabled:          tp.Enabled,
+						Matched:          false,
+						Selected:         false,
+						TargetServiceID:  tp.TargetServiceID,
 						ConditionDetails: make([]ConditionMatchDetail, 0),
 					}
 
@@ -462,16 +469,16 @@ func (s *ConfigSnapshot) MatchRoute(r *http.Request) (*MatchedRoute, bool) {
 			}
 
 			result := &MatchedRoute{
-				Route:             matcher.Route(),
-				Service:           effectiveSvc,
-				Upstream:          nil,
-				Balancer:          nil,
-				Params:            params,
-				OriginalService:   originalSvc,
-				EffectiveService:  effectiveSvc,
-				TrafficPolicyHit:  policyHit,
-				HitPolicyID:       hitPolicyID,
-				HitPolicyType:     hitPolicyType,
+				Route:              matcher.Route(),
+				Service:            effectiveSvc,
+				Upstream:           nil,
+				Balancer:           nil,
+				Params:             params,
+				OriginalService:    originalSvc,
+				EffectiveService:   effectiveSvc,
+				TrafficPolicyHit:   policyHit,
+				HitPolicyID:        hitPolicyID,
+				HitPolicyType:      hitPolicyType,
 				PolicyMatchDetails: policyMatchDetails,
 			}
 
@@ -1435,30 +1442,30 @@ type ConditionMatchDetail struct {
 }
 
 type PolicyMatchDetail struct {
-	PolicyID           uuid.UUID
-	PolicyName         string
-	PolicyType         string
-	Priority           int
-	Enabled            bool
-	Matched            bool
-	Selected           bool
-	TargetServiceID    uuid.UUID
-	ConditionDetails   []ConditionMatchDetail
-	SkipReason         string
+	PolicyID         uuid.UUID
+	PolicyName       string
+	PolicyType       string
+	Priority         int
+	Enabled          bool
+	Matched          bool
+	Selected         bool
+	TargetServiceID  uuid.UUID
+	ConditionDetails []ConditionMatchDetail
+	SkipReason       string
 }
 
 type MatchedRoute struct {
-	Route             *route.Route
-	Service           *service.Service
-	Upstream          *upstream.Upstream
-	Balancer          *Balancer
-	Params            map[string]string
+	Route    *route.Route
+	Service  *service.Service
+	Upstream *upstream.Upstream
+	Balancer *Balancer
+	Params   map[string]string
 
-	OriginalService   *service.Service
-	EffectiveService  *service.Service
-	TrafficPolicyHit  bool
-	HitPolicyID       uuid.UUID
-	HitPolicyType     string
+	OriginalService  *service.Service
+	EffectiveService *service.Service
+	TrafficPolicyHit bool
+	HitPolicyID      uuid.UUID
+	HitPolicyType    string
 
 	PolicyMatchDetails []PolicyMatchDetail
 }

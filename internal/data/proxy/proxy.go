@@ -15,9 +15,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/taichirain/portkey/internal/data/health"
 	pluginPkg "github.com/taichirain/portkey/internal/data/plugin"
 	"github.com/taichirain/portkey/internal/data/plugin/auth"
-	"github.com/taichirain/portkey/internal/data/health"
 	"github.com/taichirain/portkey/internal/data/ratelimit"
 	"github.com/taichirain/portkey/internal/data/snapshot"
 	"github.com/taichirain/portkey/internal/domain/target"
@@ -31,13 +31,13 @@ const (
 type ctxKey string
 
 const (
-	ctxKeyPluginContext ctxKey = "plugin_context"
-	ctxKeyPluginChain   ctxKey = "plugin_chain"
+	ctxKeyPluginContext    ctxKey = "plugin_context"
+	ctxKeyPluginChain      ctxKey = "plugin_chain"
 	ctxKeyEffectivePlugins ctxKey = "effective_plugins"
-	ctxKeyStartTime     ctxKey = "start_time"
-	ctxKeySelectedTarget ctxKey = "selected_target"
-	ctxKeyRetryAttempt  ctxKey = "retry_attempt"
-	ctxKeyRequestBody   ctxKey = "request_body"
+	ctxKeyStartTime        ctxKey = "start_time"
+	ctxKeySelectedTarget   ctxKey = "selected_target"
+	ctxKeyRetryAttempt     ctxKey = "retry_attempt"
+	ctxKeyRequestBody      ctxKey = "request_body"
 )
 
 type Proxy struct {
@@ -65,12 +65,12 @@ type Metrics struct {
 	responseLatency int64
 	errorsTotal     int64
 
-	requestBuckets    [metricsWindowBuckets]int64
-	errorBuckets      [metricsWindowBuckets]int64
-	latencyBuckets    [metricsWindowBuckets]int64
-	bucketTimestamps  [metricsWindowBuckets]int64
-	currentBucket     int32
-	bucketMu          sync.RWMutex
+	requestBuckets   [metricsWindowBuckets]int64
+	errorBuckets     [metricsWindowBuckets]int64
+	latencyBuckets   [metricsWindowBuckets]int64
+	bucketTimestamps [metricsWindowBuckets]int64
+	currentBucket    int32
+	bucketMu         sync.RWMutex
 
 	status2xx int64
 	status3xx int64
@@ -197,16 +197,16 @@ type StatusDistribution struct {
 }
 
 type EnhancedMetricsSnapshot struct {
-	RequestsTotal   int64              `json:"requests_total"`
-	RequestsActive  int64              `json:"requests_active"`
-	ResponseLatency int64              `json:"response_latency_us"`
-	ErrorsTotal     int64              `json:"errors_total"`
-	QPS1m           float64            `json:"qps_1m"`
-	ErrorRate1m     float64            `json:"error_rate_1m"`
-	AvgLatencyMs1m  float64            `json:"avg_latency_ms_1m"`
-	RateLimitedTotal int64             `json:"rate_limited_total"`
-	PolicyHitTotal   int64             `json:"policy_hit_total"`
-	UptimeSeconds    float64           `json:"uptime_seconds"`
+	RequestsTotal      int64              `json:"requests_total"`
+	RequestsActive     int64              `json:"requests_active"`
+	ResponseLatency    int64              `json:"response_latency_us"`
+	ErrorsTotal        int64              `json:"errors_total"`
+	QPS1m              float64            `json:"qps_1m"`
+	ErrorRate1m        float64            `json:"error_rate_1m"`
+	AvgLatencyMs1m     float64            `json:"avg_latency_ms_1m"`
+	RateLimitedTotal   int64              `json:"rate_limited_total"`
+	PolicyHitTotal     int64              `json:"policy_hit_total"`
+	UptimeSeconds      float64            `json:"uptime_seconds"`
 	StatusDistribution StatusDistribution `json:"status_distribution"`
 }
 
@@ -382,8 +382,18 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	var requestBody []byte
 	if r.Body != nil {
-		requestBody, _ = io.ReadAll(r.Body)
+		var readErr error
+		requestBody, readErr = io.ReadAll(r.Body)
 		r.Body.Close()
+		if readErr != nil {
+			p.logger.Error("读取请求体失败", zap.Error(readErr), zap.String("trace_id", traceID))
+			atomic.AddInt64(&p.metrics.errorsTotal, 1)
+			http.Error(w, "Bad Request", http.StatusBadRequest)
+			latency := time.Since(start)
+			p.logAccess(r, http.StatusBadRequest, latency, traceID)
+			p.metrics.recordRequest(http.StatusBadRequest, latency, false, matched.TrafficPolicyHit)
+			return
+		}
 		r.Body = io.NopCloser(bytes.NewBuffer(requestBody))
 	}
 
@@ -508,7 +518,7 @@ func (p *Proxy) serveWithRetry(w http.ResponseWriter, r *http.Request, chain *pl
 	}
 
 	if respErr != nil || p.isFailureStatus(statusCode) {
-		if p.shouldRetry(r, statusCode, respErr, attempt) {
+		if !recoveryWriter.streaming && p.shouldRetry(r, statusCode, respErr, attempt) {
 			p.logger.Debug("准备重试请求",
 				zap.String("trace_id", traceID),
 				zap.Int("attempt", attempt+1),
@@ -544,12 +554,7 @@ func (p *Proxy) serveWithRetry(w http.ResponseWriter, r *http.Request, chain *pl
 		p.logAccess(r, http.StatusBadGateway, latency, traceID)
 	}
 
-	if recoveryWriter.wroteHeader {
-		for k, v := range recoveryWriter.Header() {
-			for _, vv := range v {
-				w.Header().Add(k, vv)
-			}
-		}
+	if recoveryWriter.wroteHeader && !recoveryWriter.streaming {
 		w.WriteHeader(recoveryWriter.statusCode)
 		if recoveryWriter.body != nil {
 			w.Write(recoveryWriter.body.Bytes())
@@ -697,7 +702,7 @@ func (p *Proxy) shouldRetry(r *http.Request, statusCode int, err error, attempt 
 	}
 
 	retryableStatuses := map[int]bool{
-		http.StatusBadGateway:          true,
+		http.StatusBadGateway:         true,
 		http.StatusServiceUnavailable: true,
 		http.StatusGatewayTimeout:     true,
 	}
@@ -726,8 +731,8 @@ func (p *Proxy) isFailureStatus(statusCode int) bool {
 	failureStatuses := map[int]bool{
 		http.StatusInternalServerError: true,
 		http.StatusBadGateway:          true,
-		http.StatusServiceUnavailable: true,
-		http.StatusGatewayTimeout:     true,
+		http.StatusServiceUnavailable:  true,
+		http.StatusGatewayTimeout:      true,
 	}
 	return failureStatuses[statusCode]
 }
@@ -744,8 +749,9 @@ func (p *Proxy) isTimeoutError(err error) bool {
 
 type responseWriter struct {
 	http.ResponseWriter
-	statusCode int
+	statusCode  int
 	wroteHeader bool
+	streaming   bool
 	body        *bytes.Buffer
 	err         error
 }
@@ -769,7 +775,42 @@ func (w *responseWriter) Write(b []byte) (int, error) {
 	if !w.wroteHeader {
 		w.WriteHeader(http.StatusOK)
 	}
+	if !w.streaming && w.body.Len()+len(b) > 64*1024 {
+		if err := w.startStreaming(); err != nil {
+			return 0, err
+		}
+	}
+	if w.streaming {
+		return w.ResponseWriter.Write(b)
+	}
 	return w.body.Write(b)
+}
+
+func (w *responseWriter) startStreaming() error {
+	if w.streaming {
+		return nil
+	}
+	if !w.wroteHeader {
+		w.WriteHeader(http.StatusOK)
+	}
+	w.streaming = true
+	w.ResponseWriter.WriteHeader(w.statusCode)
+	if w.body.Len() > 0 {
+		_, err := w.ResponseWriter.Write(w.body.Bytes())
+		w.body.Reset()
+		return err
+	}
+	return nil
+}
+
+func (w *responseWriter) Flush() {
+	if err := w.startStreaming(); err != nil {
+		w.err = err
+		return
+	}
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
 }
 
 func (p *Proxy) setEffectivePluginsHeader(w http.ResponseWriter, plugins []*pluginPkg.EffectivePlugin) {
@@ -957,13 +998,13 @@ func (p *Proxy) logAccess(r *http.Request, statusCode int, latency time.Duration
 				policyDetails := make([]map[string]interface{}, 0, len(matched.PolicyMatchDetails))
 				for _, pd := range matched.PolicyMatchDetails {
 					policyDetail := map[string]interface{}{
-						"policy_id":        pd.PolicyID.String(),
-						"policy_name":      pd.PolicyName,
-						"policy_type":      pd.PolicyType,
-						"priority":         pd.Priority,
-						"enabled":          pd.Enabled,
-						"matched":          pd.Matched,
-						"selected":         pd.Selected,
+						"policy_id":         pd.PolicyID.String(),
+						"policy_name":       pd.PolicyName,
+						"policy_type":       pd.PolicyType,
+						"priority":          pd.Priority,
+						"enabled":           pd.Enabled,
+						"matched":           pd.Matched,
+						"selected":          pd.Selected,
 						"target_service_id": pd.TargetServiceID.String(),
 					}
 					if pd.SkipReason != "" {
